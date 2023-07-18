@@ -1,0 +1,83 @@
+pipeline{
+  agent any 
+  tools{
+    maven "maven3.8.4"
+  }
+  stages{
+    stage('1.clone'){
+      steps{
+            sh "echo clonning the latest version of the code" 
+            git branch: 'main', credentialsId: 'Git_Credentials', url: 'https://github.com/samuelokuneye/java-web-app'
+            sh "echo clonning successful"
+      }
+    }
+    stage('2.Build'){
+      steps{
+        sh "echo validation, compilation, testing and package"
+        sh "echo testing successful and ready to package"
+        sh "mvn clean package"
+      }
+    }
+    stage('3.Quality'){
+      steps{
+        sh "echo performing code quality analysis"
+        sh "echo code quality successful and ready to upload"
+        sh "mvn sonar:sonar"
+      }
+    }
+  stage('4.uploadArtifacts'){
+      steps{
+        sh "mvn deploy"
+      }
+    }
+  stage('5.Deploy2UAT'){
+      steps{
+        sh "echo DEPLOYING TO UAT for further testing and validation"
+        sshagent(['agentcredentials']) {
+        sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@172.31.89.218:/opt/tomcat9/webapps/uatapp.war"
+      }
+    }
+  }
+      stage('6.Deploy2Prod'){
+      steps{
+        sh "echo DEPLOYING application TO Production"
+        timeout(time:8, unit:'HOURS'){
+        input message: 'Please approve deployment to Production'
+      }
+        sshagent(['agentcredentials']) {
+        sh "scp -o StrictHostKeyChecking=no target/*.war ec2-user@172.31.89.218:/opt/tomcat9/webapps/app.war"
+      }
+    }
+  }
+  } 
+    post{
+    always{
+      mail bcc: 'samuel_okuneye@yahoo.com', body: '''Success,
+
+The build was great.
+
+Regards
+Sam O
++1434452483''', cc: 'samuel_okuneye@yahoo.com', from: '', replyTo: '', subject: 'sucess', to: 'samuel_okuneye@yahoo.com'
+    }
+    success{
+      mail bcc: 'samuel_okuneye@yahoo.com', body: '''Success,
+
+The build was great.
+
+Regards
+Sam O 
+''', cc: 'samuel_okuneye@yahoo.com', from: '', replyTo: '', subject: 'sucess', to: 'samuel_okuneye@yahoo.com'
+    }
+    failure{
+      mail bcc: 'samuel_okuneye@yahoo.com', body: '''Failed,
+
+The build Failed.
+
+Regards
+Sam O 
+''', cc: 'samuel_okuneye@yahoo.comm', from: '', replyTo: '', subject: 'Failed', to: 'samuel_okuneye@yahoo.com'
+    }
+  }
+
+}
